@@ -128,7 +128,7 @@ def main(self):
         sites_vor, radii = WoodMeshGen.CellPlacement_Binary_Lloyd(nrings,width_heart,width_early,width_late,\
                                                     cellsize_early,cellsize_late,iter_max,\
                                                     mergeFlag,boundary_points_original,omega=1)
-        
+
     elif radial_growth_rule == 'debug':
         # ---------------------------------------------
         # debug run
@@ -157,10 +157,9 @@ def main(self):
     for seg in boundary_coords:
         ax.plot(seg[:,0],seg[:,1],'ko--',markersize=1.,linewidth=0.1)
 
-
     # ax.plot(sites_vor[:,0],sites_vor[:,1],'ks',markersize=3.)
 
-
+    
     # ---------------------------------------------
     # # Delaunay triangulation             
     # based on old sites to get vor
@@ -168,8 +167,6 @@ def main(self):
     # important the boundary points are listed first for region index reasons, and thus not included in tessellation
     tri_inp = {'vertices': delaunay_vertices,'segments':boundary_segments,'regions':boundary_region}
     conforming_delaunay = tr.triangulate(tri_inp, 'peq3D') 
-
-
 
     # vertsD = np.array(conforming_delaunay['vertices'])
     # ax.triplot(vertsD[:, 0], vertsD[:, 1], conforming_delaunay['triangles'], 'r^-',markersize=2.,linewidth=0.15)
@@ -179,8 +176,7 @@ def main(self):
     # ax.plot(vortri_vertices[:,0],vortri_vertices[:,1],'g^',markersize=3.)
     # plt.show()
 
-
-
+    print('pre-flow')
     # ---------------------------------------------
     # # Build flow mesh
     if flowFlag in ['on','On','Y','y','Yes','yes']:
@@ -240,6 +236,7 @@ def main(self):
 
     # plt.show()
     plt.savefig(Path(outDir + '/' + geoName + '/' + geoName + '.png'), format='png', dpi=1000) 
+
 
     if randomFlag in ['on','On','Y','y','Yes','yes']:
         # ==================================================================

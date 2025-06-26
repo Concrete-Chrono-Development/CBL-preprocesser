@@ -207,13 +207,19 @@ def Clipping_Box(box_shape,box_center,box_size,box_width,box_depth,x_notch_size,
     clipping box for the delauney points (generated cell points)
     TBD: adjust to general shape using polygon or similar
     """
-
+    ax = plt.gca()
     if box_shape == "cube": # cube box
         x_min = box_center[0] - box_size/2
         x_max = box_center[0] + box_size/2 
         y_min = box_center[1] - box_size/2
         y_max = box_center[1] + box_size/2
         boundary_points = np.array([[x_min, y_min], [x_max, y_min], [x_max, y_max], [x_min, y_max]])
+        
+        points = sort_coordinates(boundary_points)
+        pgon = shp.Polygon(points)
+        seg_pgon = shp.segmentize(pgon,0.1)
+        boundary_points = np.array(seg_pgon.exterior.coords)
+        # print(boundary_points)
         
     elif box_shape =="rectangle": # rectangular box
         x_min = box_center[0] - box_width/2
@@ -256,6 +262,8 @@ def Clipping_Box(box_shape,box_center,box_size,box_width,box_depth,x_notch_size,
         print('box_shape: {:s} is not supported for current version, please check README for more details.'.format(box_shape))
         # exit()
     
+    ax.plot(boundary_points[:,0],boundary_points[:,1],'ro',markersize=3.0)
+
     points = sort_coordinates(boundary_points)
     pgon = shp.Polygon(points)
     # print('cross sectional area',pgon.area)
@@ -359,7 +367,7 @@ def CellPlacement_Binary_Lloyd(nrings,width_heart,width_sparse,width_dense,\
                     
         existing_sites = np.vstack((sites,existing_sites))
         PerimeterPointsSites = np.copy(OuterPerimeterPointsSites)
-    
+
     # cut sites to buffered boundary to make lloyd relaxation more efficient
     existing_sites = existing_sites[check_isinside(existing_sites,boundary_points,0.2)]
 
@@ -370,21 +378,26 @@ def CellPlacement_Binary_Lloyd(nrings,width_heart,width_sparse,width_dense,\
 
     lloyd_iter = 0
     for i in range(0,iter_max):
-        # print('iter')
+        print('iter',i)
         vor = Voronoi(existing_sites)
         existing_sites = relax_points(vor,omega) # returns new sites which are relaxed centroids of vor based on old sites
-        lloyd_iter += 1
-    
-    # check if sites are too close the the boundary 
-    if mergeFlag == 'On':
-        num_bound = np.shape(boundary_points)[0]  # create boundary segements to enforce boundaries 
-        boundary_segments = np.array([np.linspace(0,num_bound-1,num_bound),np.concatenate((np.linspace(1,num_bound-1,num_bound-1),np.array([0])))]).transpose()
-        boundary_region = np.array([[0,0,1,0]])
-        tri_inp = {'vertices': existing_sites,'segments':boundary_segments,'regions':boundary_region}
-        conform = tr.triangulate(tri_inp, 'peAq0D')
-        conform_sites = conform['vertices']
-        existing_sites[check_isinside(conform_sites,boundary_points,-1e-2)]
-        existing_sites = np.squeeze(existing_sites)
+        # try triangulating after relax
+        delaunay_vertices = np.concatenate((boundary_points,np.array(existing_sites))) 
+        tri_inp = {'vertices': delaunay_vertices,'segments':boundary_segments,'regions':boundary_region}
+        conforming_delaunay = tr.triangulate(tri_inp, 'peq3D') 
+        existing_sites = np.array(conforming_delaunay['vertices']) # flow point coords
+
+    print('pass lloyd')
+    # # check if sites are too close the the boundary 
+    # if mergeFlag == 'On':
+    #     num_bound = np.shape(boundary_points)[0]  # create boundary segements to enforce boundaries 
+    #     boundary_segments = np.array([np.linspace(0,num_bound-1,num_bound),np.concatenate((np.linspace(1,num_bound-1,num_bound-1),np.array([0])))]).transpose()
+    #     boundary_region = np.array([[0,0,1,0]])
+    #     tri_inp = {'vertices': existing_sites,'segments':boundary_segments,'regions':boundary_region}
+    #     conform = tr.triangulate(tri_inp, 'peAq0D')
+    #     conform_sites = conform['vertices']
+    #     existing_sites[check_isinside(conform_sites,boundary_points,-1e-2)]
+    #     existing_sites = np.squeeze(existing_sites)
 
     # Clip again sites to be inside boundary
     path_in = check_isinside(existing_sites,boundary_points,0) # checks sites inside boundary using path
@@ -1903,7 +1916,7 @@ def VisualizationFiles(geoName,NURBS_degree,nlayers,npt_per_layer_vtk,all_pts_3D
     vtkfile_flow.close()
     
 
-# =============================================================================
+    # =============================================================================
     # Paraview Vertices File
     VTKcell_types_vertices = (np.ones(npt_total_vtk)).astype(int)
 
@@ -1983,7 +1996,7 @@ def VisualizationFiles(geoName,NURBS_degree,nlayers,npt_per_layer_vtk,all_pts_3D
     
     vtkfile_vertices.close()
 
-# =============================================================================
+    # =============================================================================
     # Paraview Beam File
 
     Beam_width = np.copy(all_vertices_2D[:,12])
@@ -2073,7 +2086,7 @@ def VisualizationFiles(geoName,NURBS_degree,nlayers,npt_per_layer_vtk,all_pts_3D
     
     vtkfile_beams.close()
     
-# =============================================================================
+    # =============================================================================
     # Paraview Connector (Axis + Center section) File
     VTKcell_types_conns = np.concatenate((3*np.ones(nconnector_t),3*np.ones(nconnector_l),9*np.ones(nconnector_t),9*np.ones(nconnector_l))).astype(int)
     ncell_conns = VTKcell_types_conns.shape[0]
@@ -2165,7 +2178,7 @@ def VisualizationFiles(geoName,NURBS_degree,nlayers,npt_per_layer_vtk,all_pts_3D
     
     vtkfile_conns.close()
     
-# =============================================================================
+    # =============================================================================
     # Paraview Connector (Volume) File
     VTKcell_types_conns_vol = np.concatenate((12*np.ones(nconnector_t),12*np.ones(nconnector_l),12*np.ones(nconnector_t),12*np.ones(nconnector_l))).astype(int)
     ncell_conns_vol = VTKcell_types_conns_vol.shape[0]
